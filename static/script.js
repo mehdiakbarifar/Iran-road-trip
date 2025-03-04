@@ -15,6 +15,9 @@ const routeColors = [
     'yellow', 'pink', 'cyan', 'magenta', 'lime'
 ];
 
+console.log('Leaflet version:', L.version);
+console.log('html2canvas defined:', typeof html2canvas);
+
 function addSlider(index) {
     const placesDiv = document.getElementById('places');
     const slider = document.createElement('div');
@@ -226,44 +229,87 @@ function updateTotalDistance() {
 
 async function saveMap() {
     console.log('Attempting to save map...');
-    if (typeof leafletImage === 'undefined') {
-        console.error('leaflet-image plugin not loaded');
-        alert('Error: leaflet-image plugin not loaded. Please ensure static/leaflet-image.js is present and loaded.');
+    if (typeof html2canvas === 'undefined') {
+        console.error('html2canvas not loaded');
+        alert('Error: html2canvas not loaded. Please check your internet connection.');
         return;
     }
 
-    map.whenReady(() => {
-        leafletImage(map, function(err, canvas) {
-            if (err) {
-                console.error('Error saving map with leaflet-image:', err);
-                alert('Failed to save map: ' + err.message);
+    // Force map to redraw and stabilize
+    map.invalidateSize();
+    console.log('Map invalidated, waiting for render...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    console.log('Map ready, capturing with html2canvas...');
+    console.log('Route layers:', routeLayers);
+    console.log('Marker layers:', markers);
+
+    html2canvas(document.getElementById('map'), {
+        useCORS: true,
+        logging: true,
+        width: map.getSize().x,
+        height: map.getSize().y + 60,
+        backgroundColor: null,
+        onclone: (clonedDoc) => {
+            console.log('Cloning document for capture...');
+            const clonedMap = clonedDoc.getElementById('map');
+            if (!clonedMap) {
+                console.error('Cloned map element not found');
                 return;
             }
+            clonedMap.style.position = 'absolute';
+            clonedMap.style.left = '0';
+            clonedMap.style.top = '0';
+            clonedMap.style.transform = 'none';
 
-            console.log('Map captured successfully, processing canvas...');
-            const ctx = canvas.getContext('2d');
-            const totalText = updateTotalDistance();
-            const footerText = 'Powered by Mehdi Akbarifar';
+            const tilePane = clonedMap.querySelector('.leaflet-tile-pane');
+            if (tilePane) tilePane.style.transform = 'none';
+            else console.warn('Tile pane not found in cloned document');
 
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, canvas.height - 60, canvas.width, 30);
-            ctx.fillStyle = 'black';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(totalText, canvas.width / 2, canvas.height - 40);
+            const overlayPane = clonedMap.querySelector('.leaflet-overlay-pane');
+            if (overlayPane) {
+                overlayPane.style.transform = 'none';
+                overlayPane.style.position = 'absolute';
+                overlayPane.style.left = '0';
+                overlayPane.style.top = '0';
+                const svg = overlayPane.querySelector('svg');
+                if (svg) svg.style.transform = 'none';
+                else console.warn('SVG not found in overlay pane');
+            } else {
+                console.error('Overlay pane not found in cloned document');
+            }
 
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-            ctx.fillStyle = 'black';
-            ctx.font = '14px Arial';
-            ctx.fillText(footerText, canvas.width / 2, canvas.height - 10);
+            const objectsPane = clonedMap.querySelector('.leaflet-objects-pane');
+            if (objectsPane) objectsPane.style.transform = 'none';
+            else console.warn('Objects pane not found in cloned document');
+        }
+    }).then(canvas => {
+        console.log('Canvas captured, adding text...');
+        const ctx = canvas.getContext('2d');
+        const totalText = updateTotalDistance();
+        const footerText = 'Powered by Mehdi Akbarifar';
 
-            const link = document.createElement('a');
-            link.download = 'iran_roadmap.png';
-            link.href = canvas.toDataURL('image/png');
-            console.log('Image URL generated, triggering download...');
-            link.click();
-        });
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, canvas.height - 60, canvas.width, 30);
+        ctx.fillStyle = 'black';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(totalText, canvas.width / 2, canvas.height - 40);
+
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+        ctx.fillStyle = 'black';
+        ctx.font = '14px Arial';
+        ctx.fillText(footerText, canvas.width / 2, canvas.height - 10);
+
+        const link = document.createElement('a');
+        link.download = 'iran_roadmap.png';
+        link.href = canvas.toDataURL('image/png');
+        console.log('Image URL generated, triggering download...');
+        link.click();
+    }).catch(err => {
+        console.error('Error capturing map with html2canvas:', err);
+        alert('Failed to save map: ' + err.message);
     });
 }
 
