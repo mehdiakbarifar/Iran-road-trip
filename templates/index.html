@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Iran Roadmap</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="container">
+        <div id="map"></div>
+        <div id="sidebar">
+            <div id="places">
+                <div class="slider" id="place1_slider">
+                    <label for="place1">Place 1:</label>
+                    <input type="text" id="place1" placeholder="Type a city">
+                    <div class="suggestions" id="suggestions1"></div>
+                    <div class="distance-display" id="distance1"></div>
+                </div>
+            </div>
+            <button onclick="recalculateRoutes()">Recalculate Routes</button>
+            <button onclick="saveMap()">Save Map</button>
+            <button onclick="clearAll()">Clear All</button>
+            <div class="slider">
+                <h3>Add New City</h3>
+                <input type="text" id="new_city" placeholder="City Name">
+                <input type="number" id="lat" placeholder="Latitude" step="any">
+                <input type="number" id="lon" placeholder="Longitude" step="any">
+                <button onclick="addNewCity()">Add City</button>
+                <div id="add_city_message"></div>
+            </div>
+            <div id="total-distance" class="total-distance"></div>
+        </div>
+    </div>
+    <div id="footer">Powered by Mehdi Akbarifar</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='leaflet-image.js') }}" 
+            onload="console.log('leaflet-image.js loaded successfully')" 
+            onerror="console.error('Failed to load leaflet-image.js from static')"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
