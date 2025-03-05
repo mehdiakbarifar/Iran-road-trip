@@ -6,6 +6,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let markers = [];
 let routeLayers = [];
 let labelLayers = [];
+let nameLabels = [];
 let routeData = [];
 let placesCount = 1;
 const MAX_PLACES = 10;
@@ -15,8 +16,128 @@ const routeColors = [
     'yellow', 'pink', 'cyan', 'magenta', 'lime'
 ];
 
-console.log('Leaflet version:', L.version);
-console.log('html2canvas defined:', typeof html2canvas);
+// Custom marker icons
+const redMarkerIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    shadowSize: [41, 41]
+});
+
+const greenMarkerIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    shadowSize: [41, 41]
+});
+
+const blueMarkerIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    shadowSize: [41, 41]
+});
+
+// SVG filter for route shadows
+const svgFilter = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+svgFilter.setAttribute('style', 'position: absolute; top: -9999px;');
+svgFilter.innerHTML = `
+<defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+        <feOffset in="blur" dx="2" dy="2" result="offsetBlur"/>
+        <feMerge>
+            <feMergeNode in="offsetBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+    </filter>
+</defs>
+`;
+document.body.appendChild(svgFilter);
+
+// Translations
+const translations = {
+    en: {
+        placeLabel: 'Place',
+        typeCity: 'Type a city',
+        recalculateRoutes: 'Recalculate Routes',
+        saveMap: 'Save Map',
+        clearAll: 'Clear All',
+        toggleAddCity: 'Add a new location',
+        addNewCity: 'Add New City',
+        cityName: 'City Name',
+        latitude: 'Latitude',
+        longitude: 'Longitude',
+        addCity: 'Add City',
+        fillAllFields: 'Please fill all fields',
+        poweredBy: 'Powered by Mehdi Akbarifar',
+        to: 'to',
+        km: 'km',
+        hrs: 'hrs',
+        routeInfo: (place1, place2, distance, duration) => `From ${place1} to ${place2}: ${distance} km, ${duration} hrs`
+    },
+    fa: {
+        placeLabel: 'مکان',
+        typeCity: 'یک شهر تایپ کنید',
+        recalculateRoutes: 'محاسبه مجدد مسیرها',
+        saveMap: 'ذخیره نقشه',
+        clearAll: 'پاک کردن همه',
+        toggleAddCity: 'افزودن مکان جدید',
+        addNewCity: 'افزودن شهر جدید',
+        cityName: 'نام شهر',
+        latitude: 'عرض جغرافیایی',
+        longitude: 'طول جغرافیایی',
+        addCity: 'افزودن شهر',
+        fillAllFields: 'لطفا همه فیلدها را پر کنید',
+        poweredBy: 'قدرت گرفته از مهدی اکبری فر',
+        to: 'به',
+        km: 'کیلومتر',
+        hrs: 'ساعت',
+        routeInfo: (place1, place2, distance, duration) => `از ${place1} به ${place2} برابر ${distance} کیلومتر و ${duration} ساعت`
+    }
+};
+
+let currentLanguage = 'en';
+
+function setLanguage(lang) {
+    currentLanguage = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        el.textContent = translations[lang][key];
+        if (lang === 'fa') {
+            el.classList.add('rtl');
+        } else {
+            el.classList.remove('rtl');
+        }
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        el.placeholder = translations[lang][key];
+    });
+    document.getElementById('lang-toggle').textContent = lang === 'en' ? 'FA' : 'EN';
+    updateSliderLabels();
+    updateRouteInformation();
+}
+
+document.getElementById('lang-toggle').addEventListener('click', () => {
+    const newLang = currentLanguage === 'en' ? 'fa' : 'en';
+    setLanguage(newLang);
+});
+
+// Initial language setup
+setLanguage('en');
+
+function updateSliderLabels() {
+    for (let i = 1; i <= placesCount; i++) {
+        const label = document.querySelector(`#place${i}_slider label`);
+        if (label) {
+            label.textContent = `${translations[currentLanguage].placeLabel} ${i}:`;
+        }
+    }
+}
 
 function addSlider(index) {
     const placesDiv = document.getElementById('places');
@@ -25,8 +146,8 @@ function addSlider(index) {
     slider.id = `place${index}_slider`;
     slider.style.display = 'block';
     slider.innerHTML = `
-        <label for="place${index}">Place ${index}:</label>
-        <input type="text" id="place${index}" placeholder="Type a city">
+        <label for="place${index}" data-i18n="placeLabel">${translations[currentLanguage].placeLabel} ${index}:</label>
+        <input type="text" id="place${index}" placeholder="${translations[currentLanguage].typeCity}">
         <div class="suggestions" id="suggestions${index}"></div>
         <div class="distance-display" id="distance${index}"></div>
     `;
@@ -61,7 +182,7 @@ function setupAutocomplete(inputId, suggestionsId, nextSliderId) {
                     console.error(coords.error);
                     return;
                 }
-                addMarker(coords.lat, coords.lon);
+                addMarker(coords.lat, coords.lon, city, placesCount - 1);
                 if (nextSliderId && placesCount < MAX_PLACES) {
                     placesCount++;
                     addSlider(placesCount);
@@ -92,11 +213,42 @@ async function getCoordinates(city) {
     return await response.json();
 }
 
-function addMarker(lat, lon) {
-    const marker = L.marker([lat, lon], {
-        icon: L.divIcon({ html: '<div style="background-color:red;width:10px;height:10px;border-radius:50%;"></div>' })
+function addMarker(lat, lon, cityName, index) {
+    if (markers[index]) {
+        map.removeLayer(markers[index]);
+        map.removeLayer(nameLabels[index]);
+    }
+
+    let markerIcon;
+    if (index === 0) {
+        markerIcon = redMarkerIcon;
+    } else if (index === placesCount - 1) {
+        markerIcon = greenMarkerIcon;
+    } else {
+        markerIcon = blueMarkerIcon;
+    }
+    const marker = L.marker([lat, lon], { icon: markerIcon }).addTo(map);
+    markers[index] = marker;
+
+    const nameLabel = L.marker([lat, lon], {
+        icon: L.divIcon({
+            className: 'city-name-label',
+            html: `<div style="font-size: 12px; text-align: center; margin-bottom: 20px;">${cityName}</div>`,
+            iconAnchor: [0, -20]
+        })
     }).addTo(map);
-    markers.push(marker);
+    nameLabels[index] = nameLabel;
+
+    markers.forEach((m, i) => {
+        if (i === 0) {
+            m.setIcon(redMarkerIcon);
+        } else if (i === placesCount - 1) {
+            m.setIcon(greenMarkerIcon);
+        } else {
+            m.setIcon(blueMarkerIcon);
+        }
+    });
+
     if (markers.length === 1) {
         map.setView([lat, lon], 5);
     } else {
@@ -131,7 +283,8 @@ async function calculateRouteForPair(index) {
     drawRoute(index - 1);
 
     if (distanceDiv) {
-        distanceDiv.textContent = `${place1} to ${place2}: ${data.distance} km, ${data.duration} hrs`;
+        const routeInfo = translations[currentLanguage].routeInfo(place1, place2, data.distance, data.duration);
+        distanceDiv.textContent = routeInfo;
     }
 
     updateTotalDistance();
@@ -148,22 +301,25 @@ function drawRoute(index) {
         type: "LineString",
         coordinates: data.coordinates
     }, {
-        style: { 
+        style: {
             color: routeColors[index % routeColors.length],
-            weight: 6, 
-            opacity: 0.9 
+            weight: 6,
+            opacity: 0.6,
+            filter: 'url(#shadow)'
         }
     }).addTo(map);
     routeLayers[index] = routeLayer;
 
     const midPointIndex = Math.floor(data.coordinates.length / 2);
     const midPoint = [data.coordinates[midPointIndex][1], data.coordinates[midPointIndex][0]];
+    const text = `${data.distance} ${translations[currentLanguage].km}, ${data.duration} ${translations[currentLanguage].hrs}`;
+    const textWidth = text.length * 6;
 
     const labelLayer = L.marker(midPoint, {
         icon: L.divIcon({
-            html: `<div class="route-label">${data.distance} km, ${data.duration} hrs</div>`,
-            className: '',
-            iconAnchor: [0, -10]
+            className: 'route-label',
+            html: `<div style="background: rgba(255,255,255,0.9); padding: 5px; border-radius: 5px; width: ${textWidth}px; font-size: 11px;">${text}</div>`,
+            iconSize: [textWidth, 20]
         })
     }).addTo(map);
     labelLayers[index] = labelLayer;
@@ -209,7 +365,8 @@ async function drawRoutes() {
         drawRoute(i - 1);
 
         if (distanceDiv) {
-            distanceDiv.textContent = `${place1} to ${place2}: ${data.distance} km, ${data.duration} hrs`;
+            const routeInfo = translations[currentLanguage].routeInfo(place1, place2, data.distance, data.duration);
+            distanceDiv.textContent = routeInfo;
         }
     }
 
@@ -223,81 +380,47 @@ async function recalculateRoutes() {
 function updateTotalDistance() {
     const totalDistance = routeData.reduce((sum, data) => sum + (data ? data.distance : 0), 0);
     const totalDuration = routeData.reduce((sum, data) => sum + (data ? data.duration : 0), 0);
-    document.getElementById('total-distance').textContent = `Total: ${totalDistance.toFixed(2)} km, ${totalDuration.toFixed(2)} hrs`;
-    return `Total: ${totalDistance.toFixed(2)} km, ${totalDuration.toFixed(2)} hrs`;
+    const totalText = translations[currentLanguage].routeInfo('Total', '', totalDistance.toFixed(2), totalDuration.toFixed(2));
+    document.getElementById('total-distance').textContent = totalText;
+    return totalText;
 }
 
 async function saveMap() {
-    console.log('Attempting to save map...');
-    if (typeof html2canvas === 'undefined') {
-        console.error('html2canvas not loaded');
-        alert('Error: html2canvas not loaded. Please check your internet connection.');
+    if (typeof leafletImage === 'undefined') {
+        alert('Error: leaflet-image not loaded.');
         return;
     }
 
-    // Force map to redraw and stabilize
+    // Temporarily hide divIcon labels to avoid error
+    labelLayers.forEach(label => label && label.setOpacity(0));
+    nameLabels.forEach(label => label && label.setOpacity(0));
+
     map.invalidateSize();
-    console.log('Map invalidated, waiting for render...');
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for rendering
 
-    console.log('Map ready, capturing with html2canvas...');
-    console.log('Route layers:', routeLayers);
-    console.log('Marker layers:', markers);
-
-    html2canvas(document.getElementById('map'), {
-        useCORS: true,
-        logging: true,
-        width: map.getSize().x,
-        height: map.getSize().y + 60,
-        backgroundColor: null,
-        onclone: (clonedDoc) => {
-            console.log('Cloning document for capture...');
-            const clonedMap = clonedDoc.getElementById('map');
-            if (!clonedMap) {
-                console.error('Cloned map element not found');
-                return;
-            }
-            clonedMap.style.position = 'absolute';
-            clonedMap.style.left = '0';
-            clonedMap.style.top = '0';
-            clonedMap.style.transform = 'none';
-
-            const tilePane = clonedMap.querySelector('.leaflet-tile-pane');
-            if (tilePane) tilePane.style.transform = 'none';
-            else console.warn('Tile pane not found in cloned document');
-
-            const overlayPane = clonedMap.querySelector('.leaflet-overlay-pane');
-            if (overlayPane) {
-                overlayPane.style.transform = 'none';
-                overlayPane.style.position = 'absolute';
-                overlayPane.style.left = '0';
-                overlayPane.style.top = '0';
-                const svg = overlayPane.querySelector('svg');
-                if (svg) svg.style.transform = 'none';
-                else console.warn('SVG not found in overlay pane');
-            } else {
-                console.error('Overlay pane not found in cloned document');
-            }
-
-            const objectsPane = clonedMap.querySelector('.leaflet-objects-pane');
-            if (objectsPane) objectsPane.style.transform = 'none';
-            else console.warn('Objects pane not found in cloned document');
+    leafletImage(map, function(err, canvas) {
+        if (err) {
+            alert('Failed to save map: ' + err.message);
+            return;
         }
-    }).then(canvas => {
-        console.log('Canvas captured, adding text...');
+
+        // Restore visibility of divIcon labels
+        labelLayers.forEach(label => label && label.setOpacity(1));
+        nameLabels.forEach(label => label && label.setOpacity(1));
+
         const ctx = canvas.getContext('2d');
         const totalText = updateTotalDistance();
-        const footerText = 'Powered by Mehdi Akbarifar';
+        const footerText = translations[currentLanguage].poweredBy;
 
         ctx.fillStyle = 'white';
-        ctx.fillRect(0, canvas.height - 60, canvas.width, 30);
+        ctx.fillRect(0, canvas.height - 55, canvas.width, 30); // Background for total text
         ctx.fillStyle = 'black';
         ctx.font = '16px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(totalText, canvas.width / 2, canvas.height - 40);
+        ctx.fillText(totalText, canvas.width / 2, canvas.height - 35); // 25px padding from bottom
 
         ctx.fillStyle = 'white';
-        ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+        ctx.fillRect(0, canvas.height - 25, canvas.width, 25); // Background for footer
         ctx.fillStyle = 'black';
         ctx.font = '14px Arial';
         ctx.fillText(footerText, canvas.width / 2, canvas.height - 10);
@@ -305,21 +428,19 @@ async function saveMap() {
         const link = document.createElement('a');
         link.download = 'iran_roadmap.png';
         link.href = canvas.toDataURL('image/png');
-        console.log('Image URL generated, triggering download...');
         link.click();
-    }).catch(err => {
-        console.error('Error capturing map with html2canvas:', err);
-        alert('Failed to save map: ' + err.message);
     });
 }
 
 function clearAll() {
-    markers.forEach(marker => map.removeLayer(marker));
+    markers.forEach(marker => marker && map.removeLayer(marker));
     routeLayers.forEach(layer => layer && map.removeLayer(layer));
     labelLayers.forEach(layer => layer && map.removeLayer(layer));
+    nameLabels.forEach(label => label && map.removeLayer(label));
     markers = [];
     routeLayers = [];
     labelLayers = [];
+    nameLabels = [];
     routeData = [];
     placesCount = 1;
 
@@ -341,7 +462,7 @@ async function addNewCity() {
 
     if (!city || !lat || !lon) {
         messageDiv.style.color = 'red';
-        messageDiv.textContent = 'Please fill all fields';
+        messageDiv.textContent = translations[currentLanguage].fillAllFields;
         return;
     }
 
@@ -362,6 +483,27 @@ async function addNewCity() {
         messageDiv.style.color = 'red';
         messageDiv.textContent = result.error || 'Failed to add city';
     }
+}
+
+document.getElementById('toggle-add-city').addEventListener('click', () => {
+    const form = document.getElementById('add-city-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+});
+
+function updateRouteInformation() {
+    for (let i = 1; i < placesCount; i++) {
+        const place1 = document.getElementById(`place${i}`).value;
+        const place2 = document.getElementById(`place${i + 1}`).value;
+        const distanceDiv = document.getElementById(`distance${i}`);
+        const data = routeData[i - 1];
+
+        if (data && place1 && place2) {
+            const routeInfo = translations[currentLanguage].routeInfo(place1, place2, data.distance, data.duration);
+            distanceDiv.textContent = routeInfo;
+            drawRoute(i - 1);
+        }
+    }
+    updateTotalDistance();
 }
 
 setupAutocomplete('place1', 'suggestions1', 'place2_slider');
