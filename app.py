@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import csv
 import requests
+import os  # Add this line to import the os module
 
 app = Flask(__name__)
 
@@ -82,4 +83,3 @@ if __name__ == '__main__':
     # Get the port from the environment variable or use 5000 as a default
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
