@@ -78,10 +78,8 @@ def add_city():
         return jsonify({'message': f'Added {city}'})
     return jsonify({'error': 'Missing data'})
 
-def home():
-    return "Hello, Render!"
-
 if __name__ == '__main__':
-    # Get the port from the environment variable or use a default value
+    # Get the port from the environment variable or use 5000 as a default
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
