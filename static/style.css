@@ -35,6 +35,7 @@ button {
     color: white;
     border: none;
     cursor: pointer;
+    border-radius: 5px;
 }
 
 button:hover {
@@ -64,14 +65,10 @@ button:hover {
 }
 
 .route-label {
-    font-size: 12px;
+    font-size: 11px;
     color: #333;
     text-align: center;
     white-space: nowrap;
-    padding: 3px 6px;
-    background: white;
-    border: 1px solid #ccc;
-    display: inline-block;
 }
 
 .distance-display {
@@ -87,6 +84,17 @@ button:hover {
     color: #333;
 }
 
+.leaflet-marker-icon {
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+}
+
+.city-name-label {
+    font-size: 12px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
 #footer {
     position: fixed;
     bottom: 0;
@@ -96,4 +104,40 @@ button:hover {
     background-color: #f4f4f4;
     font-size: 14px;
     color: #666;
+}
+
+.lang-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    opacity: 0.8;
+    z-index: 1000;
+    border-radius: 5px;
+}
+
+.add-city-btn {
+    margin-top: 20px;
+    background-color: #8BC34A;
+    width: 100%;
+    padding: 8px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.add-city-btn:hover {
+    background-color: #7CB342;
+}
+
+.rtl {
+    direction: rtl;
+    text-align: right;
 }
